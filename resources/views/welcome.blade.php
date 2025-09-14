@@ -16,7 +16,7 @@
         @livewireStyles
     </head>
     <body class="antialiased font-sans">
-        <livewire:welcome />
+        @livewire('welcome')
         @livewireScripts
     </body>
 </html>

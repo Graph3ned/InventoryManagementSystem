@@ -1,6 +1,7 @@
 <?php
 
 use App\Livewire\Forms\LoginForm;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -18,10 +19,26 @@ new #[Layout('layouts.guest')] class extends Component
 
         $this->form->authenticate();
 
+        // Get the expected role from session
+        $expectedRole = session('loginRole', 'staff');
+        $userRole = Auth::user()->role;
+
+        // Check if the user's role matches the expected role for this login page
+        if ($userRole !== $expectedRole) {
+            Auth::logout();
+            
+            if ($expectedRole === 'admin') {
+                $this->addError('form.email', 'Access denied. This login is for administrators only.');
+            } else {
+                $this->addError('form.email', 'Access denied. This login is for staff members only.');
+            }
+            return;
+        }
+
         Session::regenerate();
 
         // Redirect based on user role
-        $redirectRoute = auth()->user()->role === 'staff' 
+        $redirectRoute = $userRole === 'staff' 
             ? route('Sales', absolute: false) 
             : route('dashboard', absolute: false);
 
