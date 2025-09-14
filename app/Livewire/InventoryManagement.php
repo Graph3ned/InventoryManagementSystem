@@ -5,6 +5,8 @@ namespace App\Livewire;
 use Livewire\Component;
 use App\Models\Product;
 use App\Models\Category;
+use App\Models\InventoryLog;
+use Illuminate\Support\Facades\Auth;
 
 class InventoryManagement extends Component
 {
@@ -79,12 +81,17 @@ class InventoryManagement extends Component
     {
         $this->validate();
 
+        $previousQuantity = $this->editingProduct ? $this->editingProduct->stock_quantity : 0;
+        $quantityChange = $this->stock_quantity - $previousQuantity;
+        $status = $this->getStatus($this->stock_quantity);
+
         if ($this->editingProduct) {
             $this->editingProduct->update([
                 'name' => $this->name,
                 'category_id' => $this->category_id,
                 'price' => $this->price,
                 'stock_quantity' => $this->stock_quantity,
+                'status' => $status,
                 'description' => $this->description,
             ]);
             session()->flash('message', 'Product updated successfully!');
@@ -94,9 +101,23 @@ class InventoryManagement extends Component
                 'category_id' => $this->category_id,
                 'price' => $this->price,
                 'stock_quantity' => $this->stock_quantity,
+                'status' => $status,
                 'description' => $this->description,
             ]);
             session()->flash('message', 'Product added successfully!');
+        }
+
+        // Log inventory change if there's a quantity change
+        if ($quantityChange != 0) {
+            InventoryLog::create([
+                'product_id' => $this->editingProduct ? $this->editingProduct->id : Product::where('name', $this->name)->first()->id,
+                'user_id' => Auth::id(),
+                'action' => $quantityChange > 0 ? 'Stock In' : 'Stock Out',
+                'quantity_change' => $quantityChange,
+                'previous_quantity' => $previousQuantity,
+                'new_quantity' => $this->stock_quantity,
+                'reason' => $this->editingProduct ? 'Product update' : 'New product added',
+            ]);
         }
 
         $this->loadProducts();

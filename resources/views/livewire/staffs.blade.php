@@ -9,17 +9,31 @@
             </a>
         </header>
 
-        <p class="text-gray-700 mb-6">Manage your store users and staff</p>
+        <p class="text-gray-700 mb-6">Manage your store users and staff. Staff accounts cannot be deleted to preserve sales data integrity.</p>
 
-        <div class="mb-4 text-right">
-            <button wire:click="openModal" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">Add Staff</button>
-        </div>
+        
 
         @if (session()->has('message'))
             <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
                 {{ session('message') }}
             </div>
         @endif
+
+        <!-- Data Integrity Notice -->
+        <div class="bg-blue-50 border border-blue-200 rounded-md p-4 mb-6">
+            <div class="flex">
+                <svg class="w-5 h-5 text-blue-400 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                </svg>
+                <div>
+                    <h3 class="text-sm font-medium text-blue-800">Data Integrity Protection</h3>
+                    <p class="text-sm text-blue-700 mt-1">Staff accounts cannot be deleted because they are linked to sales records. Use the activate/deactivate options to control access while preserving historical data.</p>
+                </div>
+            </div>
+        </div>
+        <div class="mb-4 text-right">
+            <button wire:click="openModal" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">Add Staff</button>
+        </div>
 
         <!-- Staff Table -->
         <div class="overflow-auto bg-white rounded shadow border border-gray-300">
@@ -38,15 +52,32 @@
                             <td class="px-4 py-2">{{ $user->name }}</td>
                             <td class="px-4 py-2">{{ $user->email }}</td>
                             <td class="px-4 py-2">
-                                <span class="font-medium {{ $user->status === 'active' ? 'text-green-600' : 'text-yellow-500' }}">
-                                    {{ ucfirst($user->status) }}
-                                </span>
+                                @if($user->status === 'active')
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        <svg class="w-2 h-2 mr-1" fill="currentColor" viewBox="0 0 8 8">
+                                            <circle cx="4" cy="4" r="3"/>
+                                        </svg>
+                                        Active
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                        <svg class="w-2 h-2 mr-1" fill="currentColor" viewBox="0 0 8 8">
+                                            <circle cx="4" cy="4" r="3"/>
+                                        </svg>
+                                        Inactive
+                                    </span>
+                                @endif
                             </td>
                             <td class="px-4 py-2 space-x-2">
                                 <button wire:click="openModal({{ $user->id }})" class="text-blue-600 hover:underline">Edit</button>
-                                <button wire:click="delete({{ $user->id }})" 
-                                        wire:confirm="Are you sure you want to delete this staff member?"
-                                        class="text-red-600 hover:underline">Delete</button>
+                                @if($user->status === 'active')
+                                    <button wire:click="deactivateUser({{ $user->id }})" 
+                                            wire:confirm="Are you sure you want to deactivate this staff member? They will not be able to log in after this change."
+                                            class="text-yellow-600 hover:underline">Deactivate</button>
+                                @else
+                                    <button wire:click="activateUser({{ $user->id }})" 
+                                            class="text-green-600 hover:underline">Activate</button>
+                                @endif
                             </td>
                         </tr>
                     @empty
@@ -93,15 +124,6 @@
                             @error('password') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                         </div>
                         
-                        <div>
-                            <label class="block text-sm font-medium mb-1">Status</label>
-                            <select wire:model="status" 
-                                    class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500">
-                                <option value="active">Active</option>
-                                <option value="inactive">Inactive</option>
-                            </select>
-                            @error('status') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
-                        </div>
                     </div>
                     
                     <div class="flex justify-end space-x-3 pt-4">

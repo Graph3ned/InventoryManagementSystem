@@ -71,7 +71,15 @@
                             <td class="px-4 py-2">{{ $sale->product->name }} ({{ $sale->quantity }}kg)</td>
                             <td class="px-4 py-2">{{ $sale->sale_date->format('Y-m-d') }}</td>
                             <td class="px-4 py-2">₱{{ number_format($sale->total_amount, 2) }}</td>
-                            <td class="px-4 py-2 text-green-600 capitalize">{{ $sale->status }}</td>
+                            <td class="px-4 py-2">
+                                @if($sale->status === 'Completed')
+                                    <span class="text-green-600 font-medium">{{ $sale->status }}</span>
+                                @elseif($sale->status === 'Pending')
+                                    <span class="text-yellow-600 font-medium">{{ $sale->status }}</span>
+                                @else
+                                    <span class="text-red-600 font-medium">{{ $sale->status }}</span>
+                                @endif
+                            </td>
                             <td class="px-4 py-2 space-x-2">
                                 <button wire:click="openModal({{ $sale->id }})" class="text-blue-600 hover:underline">Edit</button>
                                 <button wire:click="delete({{ $sale->id }})" 
@@ -108,28 +116,83 @@
                     <form wire:submit.prevent="save">
                         <div class="space-y-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Product</label>
-                                <select wire:model="product_id" wire:change="updatedProductId" class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-red-500 focus:border-red-500">
-                                    <option value="">Select Product</option>
-                                    @foreach($products as $product)
-                                        <option value="{{ $product->id }}">{{ $product->name }} (Stock: {{ $product->stock_quantity }})</option>
-                                    @endforeach
-                                </select>
+                                <label class="block text-sm font-medium text-gray-700">Search Product from Inventory</label>
+                                <div class="relative">
+                                    <input type="text" 
+                                           wire:model.live="productSearch" 
+                                           placeholder="Type to search products..." 
+                                           class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 pr-10 focus:outline-none focus:ring-red-500 focus:border-red-500">
+                                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                        <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                        </svg>
+                                    </div>
+                                </div>
+                                
+                                @if($productSearch && $filteredProducts->count() > 0)
+                                    <div class="mt-2 max-h-48 overflow-y-auto border border-gray-300 rounded-md bg-white shadow-lg">
+                                        @foreach($filteredProducts as $product)
+                                            <div wire:click="selectProduct({{ $product->id }})" 
+                                                 class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0">
+                                                <div class="flex justify-between items-start">
+                                                    <div>
+                                                        <p class="font-medium text-gray-900">{{ $product->name }}</p>
+                                                        <p class="text-sm text-gray-500">{{ $product->category->name ?? 'No category' }}</p>
+                                                    </div>
+                                                    <div class="text-right">
+                                                        <p class="font-semibold text-red-600">₱{{ number_format($product->price, 2) }}</p>
+                                                        <p class="text-sm text-gray-500">Stock: {{ $product->stock_quantity }}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @elseif($productSearch && $filteredProducts->count() == 0)
+                                    <div class="mt-2 p-3 text-center text-gray-500 bg-gray-50 rounded-md">
+                                        No products found matching "{{ $productSearch }}"
+                                    </div>
+                                @endif
+                                
+                                @if($product_id)
+                                    <div class="mt-2 p-3 bg-green-50 border border-green-200 rounded-md">
+                                        <div class="flex justify-between items-center">
+                                            <div>
+                                                <p class="font-medium text-green-800">{{ $selectedProduct->name ?? 'Selected Product' }}</p>
+                                                <p class="text-sm text-green-600">Price: ₱{{ number_format($selectedProduct->price ?? 0, 2) }}</p>
+                                            </div>
+                                            <button type="button" wire:click="clearProductSelection" class="text-red-600 hover:text-red-800">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                @endif
+                                
                                 @error('product_id') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                @if($products->isEmpty())
+                                    <p class="text-sm text-red-600 mt-1">No products available in inventory. Add products to inventory first.</p>
+                                @endif
                             </div>
                             
                             
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">Quantity</label>
-                                <input type="number" wire:model="quantity" min="1" class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-red-500 focus:border-red-500">
+                                <input type="number" 
+                                       wire:model="quantity" 
+                                       min="1" 
+                                       class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-red-500 focus:border-red-500">
                                 @error('quantity') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                @if($product_id)
+                                    @foreach($products as $product)
+                                        @if($product->id == $product_id)
+                                            <p class="text-sm text-gray-600 mt-1">Available stock: {{ $product->stock_quantity }} {{ $product->category->name ?? 'units' }}</p>
+                                            @break
+                                        @endif
+                                    @endforeach
+                                @endif
                             </div>
                             
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Unit Price</label>
-                                <input type="number" wire:model="unit_price" step="0.01" min="0" class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-red-500 focus:border-red-500">
-                                @error('unit_price') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                            </div>
                             
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">Sale Date</label>

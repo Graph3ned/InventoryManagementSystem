@@ -17,13 +17,11 @@ class Staffs extends Component
     public $name = '';
     public $email = '';
     public $password = '';
-    public $status = 'active';
 
     protected $rules = [
         'name' => 'required|string|max:255',
         'email' => 'required|string|email|max:255|unique:users,email',
         'password' => 'required|min:8',
-        'status' => 'required|in:active,inactive',
     ];
 
     public function mount()
@@ -42,7 +40,6 @@ class Staffs extends Component
             $this->editingUser = User::find($userId);
             $this->name = $this->editingUser->name;
             $this->email = $this->editingUser->email;
-            $this->status = $this->editingUser->status ?? 'active';
             $this->password = '';
         } else {
             $this->resetForm();
@@ -61,7 +58,6 @@ class Staffs extends Component
         $this->name = '';
         $this->email = '';
         $this->password = '';
-        $this->status = 'active';
         $this->editingUser = null;
     }
 
@@ -79,7 +75,6 @@ class Staffs extends Component
         $userData = [
             'name' => $this->name,
             'email' => $this->email,
-            'status' => $this->status,
             'role' => 'staff',
         ];
 
@@ -91,6 +86,7 @@ class Staffs extends Component
             $this->editingUser->update($userData);
             session()->flash('message', 'Staff updated successfully!');
         } else {
+            $userData['status'] = 'active'; // New staff are always active by default
             User::create($userData);
             session()->flash('message', 'Staff added successfully!');
         }
@@ -99,12 +95,22 @@ class Staffs extends Component
         $this->closeModal();
     }
 
-    public function delete($userId)
+    public function deactivateUser($userId)
     {
         $user = User::find($userId);
-        if ($user) {
-            $user->delete();
-            session()->flash('message', 'Staff deleted successfully!');
+        if ($user && $user->status === 'active') {
+            $user->update(['status' => 'inactive']);
+            session()->flash('message', 'Staff member deactivated successfully! They will no longer be able to log in.');
+            $this->loadUsers();
+        }
+    }
+
+    public function activateUser($userId)
+    {
+        $user = User::find($userId);
+        if ($user && $user->status === 'inactive') {
+            $user->update(['status' => 'active']);
+            session()->flash('message', 'Staff member activated successfully! They can now log in again.');
             $this->loadUsers();
         }
     }

@@ -22,7 +22,8 @@
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0">
             <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
                 <div>
-                    <select wire:model="filterPeriod" class="border rounded px-3 py-2 text-sm">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Filter Period</label>
+                    <select wire:model="filterPeriod" class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
                         <option value="today">Today</option>
                         <option value="week">This Week</option>
                         <option value="month">This Month</option>
@@ -31,11 +32,33 @@
                     </select>
                 </div>
                 @if($filterPeriod === 'custom')
-                    <div class="flex space-x-2">
-                        <input type="date" wire:model="startDate" class="border rounded px-3 py-2 text-sm">
-                        <input type="date" wire:model="endDate" class="border rounded px-3 py-2 text-sm">
+                    <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                            <input type="date" wire:model="startDate" class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                            <input type="date" wire:model="endDate" class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                        </div>
                     </div>
                 @endif
+            </div>
+            <div class="flex space-x-2">
+                <button wire:click="exportReport" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 text-sm font-medium">
+                    Export Report
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div wire:loading class="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded mb-4">
+            <div class="flex items-center">
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Loading report data...
             </div>
         </div>
 
@@ -59,8 +82,55 @@
             </div>
         </div>
 
+        <!-- Top Products and Staff -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <!-- Top Products -->
+            <div class="bg-white rounded shadow border border-gray-300">
+                <div class="p-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-800">Top Products</h3>
+                </div>
+                <div class="p-4">
+                    @forelse($this->getTopProducts() as $productData)
+                        <div class="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
+                            <div>
+                                <p class="font-medium text-gray-900">{{ $productData['product']->name }}</p>
+                                <p class="text-sm text-gray-500">{{ $productData['quantity'] }} units sold</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-semibold text-red-600">₱{{ number_format($productData['revenue'], 2) }}</p>
+                            </div>
+                        </div>
+                    @empty
+                        <p class="text-gray-500 text-center py-4">No product data for the selected period</p>
+                    @endforelse
+                </div>
+            </div>
+
+            <!-- Top Staff -->
+            <div class="bg-white rounded shadow border border-gray-300">
+                <div class="p-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-800">Top Staff</h3>
+                </div>
+                <div class="p-4">
+                    @forelse($this->getTopStaff() as $staffData)
+                        <div class="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
+                            <div>
+                                <p class="font-medium text-gray-900">{{ $staffData['user']->name }}</p>
+                                <p class="text-sm text-gray-500">{{ $staffData['sales'] }} transactions</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-semibold text-green-600">₱{{ number_format($staffData['revenue'], 2) }}</p>
+                            </div>
+                        </div>
+                    @empty
+                        <p class="text-gray-500 text-center py-4">No staff data for the selected period</p>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+
         <!-- Sub-Section -->
-        <h3 class="text-xl font-semibold mb-4">Sales Summary</h3>
+        <h3 class="text-xl font-semibold mb-4">Daily Sales Summary</h3>
 
         <!-- Sales Table -->
         <div class="overflow-auto bg-white rounded shadow border border-gray-300">

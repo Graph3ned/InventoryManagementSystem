@@ -6,6 +6,8 @@ use Livewire\Component;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\User;
+use App\Models\InventoryLog;
+use Illuminate\Support\Facades\Auth;
 
 class Sales extends Component
 {
@@ -20,6 +22,11 @@ class Sales extends Component
     public $unit_price = '';
     public $sale_date = '';
     
+    // Search functionality
+    public $productSearch = '';
+    public $filteredProducts;
+    public $selectedProduct;
+    
     protected $rules = [
         'product_id' => 'required|exists:products,id',
         'quantity' => 'required|integer|min:1',
@@ -32,6 +39,7 @@ class Sales extends Component
         $this->loadSales();
         $this->loadProducts();
         $this->sale_date = now()->format('Y-m-d');
+        $this->filteredProducts = collect();
     }
 
     public function loadSales()
@@ -41,7 +49,11 @@ class Sales extends Component
 
     public function loadProducts()
     {
-        $this->products = Product::where('status', 'active')->get();
+        $this->products = Product::with('category')
+            ->whereIn('status', ['In Stock', 'Low Stock'])
+            ->where('stock_quantity', '>', 0)
+            ->orderBy('name')
+            ->get();
     }
 
     public function openModal($saleId = null)
@@ -52,6 +64,9 @@ class Sales extends Component
             $this->quantity = $this->editingSale->quantity;
             $this->unit_price = $this->editingSale->unit_price;
             $this->sale_date = $this->editingSale->sale_date;
+            $this->selectedProduct = $this->editingSale->product;
+            $this->productSearch = '';
+            $this->filteredProducts = collect();
         } else {
             $this->resetForm();
         }
@@ -71,14 +86,58 @@ class Sales extends Component
         $this->quantity = '';
         $this->unit_price = '';
         $this->sale_date = now()->format('Y-m-d');
+        $this->productSearch = '';
+        $this->filteredProducts = collect();
+        $this->selectedProduct = null;
     }
 
     public function updatedProductId()
     {
         if ($this->product_id) {
             $product = Product::find($this->product_id);
-            $this->unit_price = $product ? $product->price : '';
+            if ($product) {
+                $this->unit_price = $product->price;
+                $this->selectedProduct = $product;
+                // Reset quantity to 1 when product changes
+                $this->quantity = 1;
+            }
         }
+    }
+
+    public function updatedProductSearch()
+    {
+        if (strlen($this->productSearch) >= 2) {
+            $this->filteredProducts = $this->products->filter(function ($product) {
+                return stripos($product->name, $this->productSearch) !== false ||
+                       stripos($product->category->name ?? '', $this->productSearch) !== false;
+            });
+        } else {
+            $this->filteredProducts = collect();
+        }
+    }
+
+    public function selectProduct($productId)
+    {
+        $this->product_id = $productId;
+        $this->productSearch = '';
+        $this->filteredProducts = collect();
+        
+        $product = Product::find($productId);
+        if ($product) {
+            $this->unit_price = $product->price;
+            $this->selectedProduct = $product;
+            $this->quantity = 1;
+        }
+    }
+
+    public function clearProductSelection()
+    {
+        $this->product_id = '';
+        $this->unit_price = '';
+        $this->selectedProduct = null;
+        $this->quantity = '';
+        $this->productSearch = '';
+        $this->filteredProducts = collect();
     }
 
     public function save()
@@ -94,32 +153,52 @@ class Sales extends Component
         }
 
         $totalAmount = $this->quantity * $this->unit_price;
+        $previousQuantity = $product->stock_quantity;
+        $newQuantity = $previousQuantity - $this->quantity;
 
         if ($this->editingSale) {
+            // Restore previous stock for edit
+            $product->increment('stock_quantity', $this->editingSale->quantity);
+            
             $this->editingSale->update([
                 'product_id' => $this->product_id,
-                'user_id' => auth()->id(),
+                'user_id' => Auth::id(),
                 'quantity' => $this->quantity,
                 'unit_price' => $this->unit_price,
                 'total_amount' => $totalAmount,
                 'sale_date' => $this->sale_date,
+                'status' => 'Completed',
             ]);
             session()->flash('message', 'Sale updated successfully!');
         } else {
             Sale::create([
                 'product_id' => $this->product_id,
-                'user_id' => auth()->id(),
+                'user_id' => Auth::id(),
                 'quantity' => $this->quantity,
                 'unit_price' => $this->unit_price,
                 'total_amount' => $totalAmount,
                 'sale_date' => $this->sale_date,
-                'status' => 'completed',
+                'status' => 'Completed',
             ]);
             session()->flash('message', 'Sale recorded successfully!');
         }
 
         // Update product stock
         $product->decrement('stock_quantity', $this->quantity);
+        
+        // Update product status based on new stock level
+        $this->updateProductStatus($product, $newQuantity);
+        
+        // Log inventory change
+        InventoryLog::create([
+            'product_id' => $product->id,
+            'user_id' => Auth::id(),
+            'action' => 'Stock Out',
+            'quantity_change' => -$this->quantity,
+            'previous_quantity' => $previousQuantity,
+            'new_quantity' => $newQuantity,
+            'reason' => 'Sale transaction - ' . ($this->editingSale ? 'Updated' : 'New') . ' sale',
+        ]);
         
         $this->loadSales();
         $this->loadProducts();
@@ -129,14 +208,42 @@ class Sales extends Component
     public function delete($saleId)
     {
         $sale = Sale::find($saleId);
+        $product = $sale->product;
+        $previousQuantity = $product->stock_quantity;
+        $newQuantity = $previousQuantity + $sale->quantity;
         
         // Restore stock
-        $sale->product->increment('stock_quantity', $sale->quantity);
+        $product->increment('stock_quantity', $sale->quantity);
+        
+        // Update product status based on new stock level
+        $this->updateProductStatus($product, $newQuantity);
+        
+        // Log inventory change
+        InventoryLog::create([
+            'product_id' => $product->id,
+            'user_id' => Auth::id(),
+            'action' => 'Stock In',
+            'quantity_change' => $sale->quantity,
+            'previous_quantity' => $previousQuantity,
+            'new_quantity' => $newQuantity,
+            'reason' => 'Sale deletion - Stock restored',
+        ]);
         
         $sale->delete();
         session()->flash('message', 'Sale deleted successfully!');
         $this->loadSales();
         $this->loadProducts();
+    }
+
+    private function updateProductStatus($product, $newQuantity)
+    {
+        if ($newQuantity <= 0) {
+            $product->update(['status' => 'Out of Stock']);
+        } elseif ($newQuantity <= 10) { // Assuming 10 is the low stock threshold
+            $product->update(['status' => 'Low Stock']);
+        } else {
+            $product->update(['status' => 'In Stock']);
+        }
     }
 
     public function getTotalSales()
