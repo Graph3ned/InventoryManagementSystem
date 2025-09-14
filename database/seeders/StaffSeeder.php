@@ -17,7 +17,7 @@ class StaffSeeder extends Seeder
         User::create([
             'name' => 'John Staff',
             'email' => 'staff@tindahan.ph',
-            'password' => Hash::make('password'),
+            'password' => Hash::make('asdfasdf'),
             'role' => 'staff',
             'status' => 'active',
         ]);
@@ -25,7 +25,7 @@ class StaffSeeder extends Seeder
         User::create([
             'name' => 'Jane Staff',
             'email' => 'jane@tindahan.ph',
-            'password' => Hash::make('password'),
+            'password' => Hash::make('asdfasdf'),
             'role' => 'staff',
             'status' => 'active',
         ]);

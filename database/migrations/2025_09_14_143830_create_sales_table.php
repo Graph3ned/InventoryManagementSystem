@@ -19,7 +19,6 @@ return new class extends Migration
             $table->decimal('unit_price', 10, 2);
             $table->decimal('total_amount', 10, 2);
             $table->date('sale_date');
-            $table->enum('status', ['Completed', 'Pending', 'Cancelled'])->default('Pending');
             $table->timestamps();
         });
     }

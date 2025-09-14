@@ -10,6 +10,8 @@
         </header>
 
         <p class="text-gray-700 mb-6">Analyze your store's performance</p>
+        
+        
 
         <!-- Flash Messages -->
         @if (session()->has('message'))
@@ -23,7 +25,7 @@
             <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Filter Period</label>
-                    <select wire:model="filterPeriod" class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                    <select wire:model.live="filterPeriod" class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
                         <option value="today">Today</option>
                         <option value="week">This Week</option>
                         <option value="month">This Month</option>
@@ -35,18 +37,22 @@
                     <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                            <input type="date" wire:model="startDate" class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                            <input type="date" wire:model.live="startDate" class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-                            <input type="date" wire:model="endDate" class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                            <input type="date" wire:model.live="endDate" class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
                         </div>
                     </div>
                 @endif
             </div>
             <div class="flex space-x-2">
-                <button wire:click="exportReport" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 text-sm font-medium">
-                    Export Report
+                <button wire:click="exportReport" 
+                        wire:loading.attr="disabled"
+                        wire:target="exportReport"
+                        class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span wire:loading.remove wire:target="exportReport">Export Report</span>
+                    <span wire:loading wire:target="exportReport">Exporting...</span>
                 </button>
             </div>
         </div>
@@ -130,46 +136,166 @@
         </div>
 
         <!-- Sub-Section -->
-        <h3 class="text-xl font-semibold mb-4">Daily Sales Summary</h3>
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-semibold">Daily Sales Summary</h3>
+        </div>
+
+        <!-- Items per page selector -->
+        <div class="flex items-center gap-2 mb-4">
+            <label class="text-sm text-gray-600">Show:</label>
+            <select wire:model.live="perPage" class="text-sm border border-gray-300 rounded px-2 py-1 focus:border-red-500 focus:ring-1 focus:ring-red-500" style="-webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: none;">
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+            </select>
+            <span class="text-sm text-gray-600">per page</span>
+        </div>
+
 
         <!-- Sales Table -->
         <div class="overflow-auto bg-white rounded shadow border border-gray-300">
             <table class="min-w-full text-sm text-left">
                 <thead class="bg-gray-100 text-gray-700 font-semibold">
                     <tr>
-                        <th class="px-4 py-2">Date</th>
-                        <th class="px-4 py-2">Total Sales</th>
-                        <th class="px-4 py-2">Items Sold</th>
-                        <th class="px-4 py-2">Transactions</th>
-                        <th class="px-4 py-2">Avg. Sale</th>
+                        <th class="px-4 py-3">Date</th>
+                        <th class="px-4 py-3">Total Sales</th>
+                        <th class="px-4 py-3">Items Sold</th>
+                        <th class="px-4 py-3">Transactions</th>
+                        <th class="px-4 py-3">Avg. Sale</th>
                     </tr>
                 </thead>
-                <tbody>
-                    @forelse($this->getDailySales() as $dailySale)
-                        <tr class="border-t">
-                            <td class="px-4 py-2">{{ \Carbon\Carbon::parse($dailySale['date'])->format('M d, Y') }}</td>
-                            <td class="px-4 py-2">₱{{ number_format($dailySale['revenue'], 2) }}</td>
-                            <td class="px-4 py-2">{{ $dailySale['quantity'] }}</td>
-                            <td class="px-4 py-2">{{ $sales->where('sale_date', $dailySale['date'])->count() }}</td>
-                            <td class="px-4 py-2">₱{{ number_format($dailySale['revenue'] / max($sales->where('sale_date', $dailySale['date'])->count(), 1), 2) }}</td>
+                <tbody class="divide-y divide-blue-100">
+                    @php
+                        $paginatedData = $this->getPaginatedDailySales();
+                    @endphp
+                    @foreach ($paginatedData['data'] as $dailySale)
+                        <tr class="bg-white hover:bg-blue-50 transition-colors duration-200">
+                            <td class="px-4 py-3 text-gray-700">
+                                <div class="text-gray-700 font-medium">{{ \Carbon\Carbon::parse($dailySale['date'])->format('M d, Y') }}</div>
+                            </td>
+                            <td class="px-4 py-3 text-gray-700">
+                                <div class="text-gray-700 font-semibold text-green-600">₱{{ number_format($dailySale['revenue'], 2) }}</div>
+                            </td>
+                            <td class="px-4 py-3 text-gray-700">
+                                <div class="text-gray-700">{{ $dailySale['quantity'] }}</div>
+                            </td>
+                            <td class="px-4 py-3 text-gray-700">
+                                <div class="text-gray-700">{{ $dailySale['transactions'] }}</div>
+                            </td>
+                            <td class="px-4 py-3 text-gray-700">
+                                <div class="text-gray-700 font-medium">₱{{ number_format($dailySale['revenue'] / max($dailySale['transactions'], 1), 2) }}</div>
+                            </td>
                         </tr>
-                    @empty
-                        <tr class="border-t">
-                            <td colspan="5" class="px-4 py-8 text-center text-gray-500">No sales data for the selected period</td>
+                    @endforeach
+                    @if($paginatedData['total'] == 0)
+                        <tr class="bg-white">
+                            <td colspan="5" class="px-4 py-8 text-center text-gray-500">
+                                <div class="flex flex-col items-center">
+                                    <svg class="w-12 h-12 text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                    </svg>
+                                    <p class="text-gray-500">No sales data for the selected period</p>
+                                </div>
+                            </td>
                         </tr>
-                    @endforelse
-                    @if($this->getDailySales()->count() > 0)
-                        <tr class="bg-gray-50 font-semibold border-t">
-                            <td class="px-4 py-2">Total</td>
-                            <td class="px-4 py-2">₱{{ number_format($this->getTotalRevenue(), 2) }}</td>
-                            <td class="px-4 py-2">{{ $this->getTotalQuantity() }}</td>
-                            <td class="px-4 py-2">{{ $this->getTotalOrders() }}</td>
-                            <td class="px-4 py-2">₱{{ number_format($this->getAverageOrderValue(), 2) }}</td>
+                    @endif
+                    @if($paginatedData['total'] > 0)
+                        <tr class="bg-gray-50 font-semibold border-t-2 border-gray-200">
+                            <td class="px-4 py-3 text-gray-800">
+                                <div class="text-gray-800 font-bold">Total</div>
+                            </td>
+                            <td class="px-4 py-3 text-gray-800">
+                                <div class="text-gray-800 font-bold text-green-600">₱{{ number_format($this->getTotalRevenue(), 2) }}</div>
+                            </td>
+                            <td class="px-4 py-3 text-gray-800">
+                                <div class="text-gray-800 font-bold">{{ $this->getTotalQuantity() }}</div>
+                            </td>
+                            <td class="px-4 py-3 text-gray-800">
+                                <div class="text-gray-800 font-bold">{{ $this->getTotalOrders() }}</div>
+                            </td>
+                            <td class="px-4 py-3 text-gray-800">
+                                <div class="text-gray-800 font-bold">₱{{ number_format($this->getAverageOrderValue(), 2) }}</div>
+                            </td>
                         </tr>
                     @endif
                 </tbody>
             </table>
         </div>
+
+        <!-- Results Count and Pagination -->
+        @php
+            $paginatedData = $this->getPaginatedDailySales();
+            $totalApplications = $paginatedData['total'];
+            $currentPage = $paginatedData['currentPage'];
+            $lastPage = $paginatedData['lastPage'];
+            $perPage = $paginatedData['perPage'];
+        @endphp
+        
+        @if($totalApplications > 0)
+            <div class="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div class="text-sm text-gray-600">
+                    Showing {{ (($currentPage - 1) * $perPage) + 1 }} to {{ min($currentPage * $perPage, $totalApplications) }} of {{ $totalApplications }} result(s)
+                </div>
+                
+                <!-- Pagination Controls -->
+                @if($lastPage > 1)
+                    <div class="flex items-center gap-2">
+                        
+                        
+                        <!-- Pagination buttons -->
+                        <div class="flex items-center gap-1">
+                            <!-- Previous button -->
+                            <button 
+                                wire:click="goToPage({{ $currentPage - 1 }})" 
+                                @if($currentPage <= 1) disabled @endif
+                                class="px-3 py-1 text-sm border border-gray-300 rounded {{ $currentPage == 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50' }}"
+                            >
+                                Previous
+                            </button>
+                            
+                            <!-- Page numbers -->
+                            @php
+                                $start = max(1, $currentPage - 2);
+                                $end = min($lastPage, $currentPage + 2);
+                            @endphp
+                            
+                            @if($start > 1)
+                                <button wire:click="goToPage(1)" class="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50">1</button>
+                                @if($start > 2)
+                                    <span class="px-2 text-gray-400">...</span>
+                                @endif
+                            @endif
+                            
+                            @for($i = $start; $i <= $end; $i++)
+                                <button 
+                                    wire:click="goToPage({{ $i }})" 
+                                    class="px-3 py-1 text-sm border border-gray-300 rounded {{ $i == $currentPage ? 'bg-red-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50' }}"
+                                >
+                                    {{ $i }}
+                                </button>
+                            @endfor
+                            
+                            @if($end < $lastPage)
+                                @if($end < $lastPage - 1)
+                                    <span class="px-2 text-gray-400">...</span>
+                                @endif
+                                <button wire:click="goToPage({{ $lastPage }})" class="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50">{{ $lastPage }}</button>
+                            @endif
+                            
+                            <!-- Next button -->
+                            <button 
+                                wire:click="goToPage({{ $currentPage + 1 }})" 
+                                @if($currentPage >= $lastPage) disabled @endif
+                                class="px-3 py-1 text-sm border border-gray-300 rounded {{ $currentPage >= $lastPage ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50' }}"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                @endif
+            </div>
+        @endif
     </div>
 
 </div>

@@ -16,6 +16,10 @@ class Sales extends Component
     public $showModal = false;
     public $editingSale = null;
     
+    // Pagination properties
+    public $perPage = 10;
+    public $currentPage = 1;
+    
     // Form fields
     public $product_id = '';
     public $quantity = '';
@@ -167,7 +171,6 @@ class Sales extends Component
                 'unit_price' => $this->unit_price,
                 'total_amount' => $totalAmount,
                 'sale_date' => $this->sale_date,
-                'status' => 'Completed',
             ]);
             session()->flash('message', 'Sale updated successfully!');
         } else {
@@ -178,7 +181,6 @@ class Sales extends Component
                 'unit_price' => $this->unit_price,
                 'total_amount' => $totalAmount,
                 'sale_date' => $this->sale_date,
-                'status' => 'Completed',
             ]);
             session()->flash('message', 'Sale recorded successfully!');
         }
@@ -264,6 +266,39 @@ class Sales extends Component
     public function getTodayQuantity()
     {
         return $this->sales->where('sale_date', now()->format('Y-m-d'))->sum('quantity');
+    }
+
+    public function getPaginatedSales()
+    {
+        $allSales = $this->sales;
+        $total = $allSales->count();
+        
+        // Ensure current page is valid
+        $lastPage = max(1, ceil($total / $this->perPage));
+        if ($this->currentPage > $lastPage) {
+            $this->currentPage = 1;
+        }
+        
+        $offset = ($this->currentPage - 1) * $this->perPage;
+        $paginatedData = $allSales->slice($offset, $this->perPage);
+        
+        return [
+            'data' => $paginatedData,
+            'total' => $total,
+            'currentPage' => $this->currentPage,
+            'lastPage' => $lastPage,
+            'perPage' => $this->perPage
+        ];
+    }
+
+    public function goToPage($page)
+    {
+        $this->currentPage = $page;
+    }
+
+    public function updatedPerPage()
+    {
+        $this->currentPage = 1; // Reset to first page when changing per page
     }
 
     public function render()

@@ -53,6 +53,18 @@
             </div>
         @endif
 
+        <!-- Items per page selector -->
+        <div class="flex items-center gap-2 mb-4">
+            <label class="text-sm text-gray-600">Show:</label>
+            <select wire:model.live="perPage" class="text-sm border border-gray-300 rounded px-2 py-1 focus:border-red-500 focus:ring-1 focus:ring-red-500" style="-webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: none;">
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+            </select>
+            <span class="text-sm text-gray-600">per page</span>
+        </div>
+
         <!-- Sales Table -->
         <div class="overflow-auto bg-white rounded shadow border border-gray-300">
             <table class="min-w-full text-sm text-left">
@@ -61,25 +73,18 @@
                         <th class="px-4 py-2">Product</th>
                         <th class="px-4 py-2">Date</th>
                         <th class="px-4 py-2">Amount</th>
-                        <th class="px-4 py-2">Status</th>
                         <th class="px-4 py-2">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($sales as $sale)
+                    @php
+                        $paginatedData = $this->getPaginatedSales();
+                    @endphp
+                    @forelse($paginatedData['data'] as $sale)
                         <tr class="border-t">
                             <td class="px-4 py-2">{{ $sale->product->name }} ({{ $sale->quantity }}kg)</td>
                             <td class="px-4 py-2">{{ $sale->sale_date->format('Y-m-d') }}</td>
                             <td class="px-4 py-2">₱{{ number_format($sale->total_amount, 2) }}</td>
-                            <td class="px-4 py-2">
-                                @if($sale->status === 'Completed')
-                                    <span class="text-green-600 font-medium">{{ $sale->status }}</span>
-                                @elseif($sale->status === 'Pending')
-                                    <span class="text-yellow-600 font-medium">{{ $sale->status }}</span>
-                                @else
-                                    <span class="text-red-600 font-medium">{{ $sale->status }}</span>
-                                @endif
-                            </td>
                             <td class="px-4 py-2 space-x-2">
                                 <button wire:click="openModal({{ $sale->id }})" class="text-blue-600 hover:underline">Edit</button>
                                 <button wire:click="delete({{ $sale->id }})" 
@@ -89,12 +94,84 @@
                         </tr>
                     @empty
                         <tr class="border-t">
-                            <td colspan="5" class="px-4 py-8 text-center text-gray-500">No sales found</td>
+                            <td colspan="4" class="px-4 py-8 text-center text-gray-500">No sales found</td>
                         </tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
+
+        <!-- Results Count and Pagination -->
+        @php
+            $paginatedData = $this->getPaginatedSales();
+            $totalApplications = $paginatedData['total'];
+            $currentPage = $paginatedData['currentPage'];
+            $lastPage = $paginatedData['lastPage'];
+            $perPage = $paginatedData['perPage'];
+        @endphp
+        
+        @if($totalApplications > 0)
+            <div class="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div class="text-sm text-gray-600">
+                    Showing {{ (($currentPage - 1) * $perPage) + 1 }} to {{ min($currentPage * $perPage, $totalApplications) }} of {{ $totalApplications }} result(s)
+                </div>
+                
+                <!-- Pagination Controls -->
+                @if($lastPage > 1)
+                    <div class="flex items-center gap-2">
+                        <!-- Pagination buttons -->
+                        <div class="flex items-center gap-1">
+                            <!-- Previous button -->
+                            <button 
+                                wire:click="goToPage({{ $currentPage - 1 }})" 
+                                @if($currentPage <= 1) disabled @endif
+                                class="px-3 py-1 text-sm border border-gray-300 rounded {{ $currentPage == 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50' }}"
+                            >
+                                Previous
+                            </button>
+                            
+                            <!-- Page numbers -->
+                            @php
+                                $start = max(1, $currentPage - 2);
+                                $end = min($lastPage, $currentPage + 2);
+                            @endphp
+                            
+                            @if($start > 1)
+                                <button wire:click="goToPage(1)" class="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50">1</button>
+                                @if($start > 2)
+                                    <span class="px-2 text-gray-400">...</span>
+                                @endif
+                            @endif
+                            
+                            @for($i = $start; $i <= $end; $i++)
+                                <button 
+                                    wire:click="goToPage({{ $i }})" 
+                                    class="px-3 py-1 text-sm border border-gray-300 rounded {{ $i == $currentPage ? 'bg-red-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50' }}"
+                                >
+                                    {{ $i }}
+                                </button>
+                            @endfor
+                            
+                            @if($end < $lastPage)
+                                @if($end < $lastPage - 1)
+                                    <span class="px-2 text-gray-400">...</span>
+                                @endif
+                                <button wire:click="goToPage({{ $lastPage }})" class="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50">{{ $lastPage }}</button>
+                            @endif
+                            
+                            <!-- Next button -->
+                            <button 
+                                wire:click="goToPage({{ $currentPage + 1 }})" 
+                                @if($currentPage >= $lastPage) disabled @endif
+                                class="px-3 py-1 text-sm border border-gray-300 rounded {{ $currentPage >= $lastPage ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50' }}"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                @endif
+            </div>
+        @endif
     </div>
 
     <!-- Add/Edit Sale Modal -->

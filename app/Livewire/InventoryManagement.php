@@ -15,6 +15,10 @@ class InventoryManagement extends Component
     public $showModal = false;
     public $editingProduct = null;
     
+    // Pagination properties
+    public $perPage = 10;
+    public $currentPage = 1;
+    
     // Form fields
     public $name = '';
     public $category_id = '';
@@ -39,6 +43,39 @@ class InventoryManagement extends Component
     public function loadProducts()
     {
         $this->products = Product::with('category')->get();
+    }
+
+    public function getPaginatedProducts()
+    {
+        $allProducts = $this->products;
+        $total = $allProducts->count();
+        
+        // Ensure current page is valid
+        $lastPage = max(1, ceil($total / $this->perPage));
+        if ($this->currentPage > $lastPage) {
+            $this->currentPage = 1;
+        }
+        
+        $offset = ($this->currentPage - 1) * $this->perPage;
+        $paginatedData = $allProducts->slice($offset, $this->perPage);
+        
+        return [
+            'data' => $paginatedData,
+            'total' => $total,
+            'currentPage' => $this->currentPage,
+            'lastPage' => $lastPage,
+            'perPage' => $this->perPage
+        ];
+    }
+
+    public function goToPage($page)
+    {
+        $this->currentPage = $page;
+    }
+
+    public function updatedPerPage()
+    {
+        $this->currentPage = 1; // Reset to first page when changing per page
     }
 
     public function loadCategories()
@@ -124,12 +161,8 @@ class InventoryManagement extends Component
         $this->closeModal();
     }
 
-    public function delete($productId)
-    {
-        Product::find($productId)->delete();
-        session()->flash('message', 'Product deleted successfully!');
-        $this->loadProducts();
-    }
+    // Product deletion is disabled for data integrity
+    // Products cannot be deleted once they have sales records or inventory history
 
     public function getStatus($stockQuantity)
     {
@@ -152,7 +185,6 @@ class InventoryManagement extends Component
             return 'text-green-600';
         }
     }
-
 
     public function render()
     {
