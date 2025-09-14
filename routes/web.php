@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Route;
 Route::view('/', 'welcome');
 
 Route::view('dashboard', 'dashboard')
-    ->middleware(['auth', 'verified'])
+    ->middleware(['auth', 'verified', 'role:admin'])
     ->name('dashboard');
 
 Route::view('InventoryManagement', 'InventoryManagement')
@@ -17,7 +17,7 @@ Route::view('Sales', 'Sales')
     ->name('Sales');
 
 Route::view('Reports', 'Reports')
-    ->middleware(['auth', 'verified'])
+    ->middleware(['auth', 'verified', 'role:admin'])
     ->name('Reports');
 
 Route::view('profile', 'profile')
@@ -25,7 +25,7 @@ Route::view('profile', 'profile')
     ->name('profile');
 
 Route::view('Staffs', 'Staffs')
-    ->middleware(['auth', 'verified'])
+    ->middleware(['auth', 'verified', 'role:admin'])
     ->name('Staffs');
 
 require __DIR__.'/auth.php';

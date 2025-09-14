@@ -1,105 +1,154 @@
-<!-- Sales Section (initially hidden) -->
-<div id="salesSection" class="bg-zinc-100 p-4 sm:p-6 md:p-8 overflow-auto min-h-screen ml-64">
+<div class="ml-64">
+    <!-- Sales Section -->
+    <div class="bg-zinc-100 p-4 sm:p-6 md:p-8 min-h-screen">
         <header class="flex justify-between items-center mb-6">
-            <h2 class="text-3xl font-bold">Sales</h2>
+            <h2 class="text-3xl font-bold">Sales Management</h2>
+            <a href="{{ route('profile') }}" class="flex flex-col items-end space-y-0.5 cursor-pointer hover:bg-gray-100 p-2 rounded">
+                <span class="text-zinc-700 font-medium">{{ Auth::user()->name }}</span>
+                <span class="text-sm text-gray-500">{{ Auth::user()->email }}</span>
+            </a>
         </header>
 
-        <!-- Add Product Form -->
-        <form id="addProductForm" class="mb-6 space-y-4 max-w-xl">
-            <div class="grid grid-cols-4 gap-4 items-end">
-                <div>
-                    <label for="product" class="block mb-1 font-semibold">Product Name</label>
-                    <input
-                        id="product"
-                        name="product"
-                        type="text"
-                        class="border border-gray-300 rounded p-2 w-full"
-                        required
-                        placeholder="Product Name"
-                    />
-                </div>
-                <div>
-                    <label for="date" class="block mb-1 font-semibold">Date</label>
-                    <input
-                        id="date"
-                        name="date"
-                        type="date"
-                        class="border border-gray-300 rounded p-2 w-full"
-                        required
-                    />
-                </div>
-                <div>
-                    <label for="amount" class="block mb-1 font-semibold">Amount</label>
-                    <input
-                        id="amount"
-                        name="amount"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        class="border border-gray-300 rounded p-2 w-full"
-                        required
-                        placeholder="Amount"
-                    />
-                </div>
-                <div>
-                    <label for="status" class="block mb-1 font-semibold">Status</label>
-                    <select
-                        id="status"
-                        name="status"
-                        class="border border-gray-300 rounded p-2 w-full"
-                        required
-                    >
-                        <option value="In Stock">In Stock</option>
-                        <option value="Out of Stock">Out of Stock</option>
-                        <option value="Pending">Pending</option>
-                    </select>
-                </div>
-                <div>
-                    <button
-                        type="submit"
-                        class="bg-red-600 text-white rounded px-4 py-2 hover:bg-red-700"
-                    >
-                        Add Product
-                    </button>
-                </div>
+        <p class="text-gray-700 mb-6">Track and manage your sales transactions</p>
+
+        <!-- Flash Messages -->
+        @if (session()->has('message'))
+            <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+                {{ session('message') }}
             </div>
-        </form>
+        @endif
+
+        @if (session()->has('error'))
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                {{ session('error') }}
+            </div>
+        @endif
+
+        <!-- Sales Stats -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+            <div class="bg-white p-6 rounded-lg shadow">
+                <p class="text-sm text-gray-600 font-semibold">Total Sales</p>
+                <p class="text-2xl font-bold">₱{{ number_format($this->getTotalSales(), 2) }}</p>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow">
+                <p class="text-sm text-gray-600 font-semibold">Total Items Sold</p>
+                <p class="text-2xl font-bold">{{ $this->getTotalQuantity() }}</p>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow">
+                <p class="text-sm text-gray-600 font-semibold">Today's Sales</p>
+                <p class="text-2xl font-bold text-green-600">₱{{ number_format($this->getTodaySales(), 2) }}</p>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow">
+                <p class="text-sm text-gray-600 font-semibold">Today's Items</p>
+                <p class="text-2xl font-bold text-blue-600">{{ $this->getTodayQuantity() }}</p>
+            </div>
+        </div>
+
+        <!-- Add Sale Button (Only for Staff) -->
+        @if(auth()->user()->role === 'staff')
+            <div class="mb-4 flex justify-end">
+                <button wire:click="openModal" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
+                    Add Sale
+                </button>
+            </div>
+        @endif
 
         <!-- Sales Table -->
-        <table
-            id="salesTable"
-            class="min-w-full rounded shadow border border-zinc-300"
-        >
-            <thead>
-                <tr>
-                    <th class="border px-4 py-2 text-left">Product</th>
-                    <th class="border px-4 py-2 text-left">Date</th>
-                    <th class="border px-4 py-2 text-left">Amount</th>
-                    <th class="border px-4 py-2 text-left">Status</th>
-                    <th class="border px-4 py-2 text-left">Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td class="border px-4 py-2">Fresh Tomatoes (5kg)</td>
-                    <td class="border px-4 py-2">2025-05-19</td>
-                    <td class="border px-4 py-2">$25.99</td>
-                    <td class="border px-4 py-2">In Stock</td>
-                    <td class="border px-4 py-2 space-x-2">
-                        <button class="text-blue-600 hover:underline editBtn">Edit</button>
-                        <button class="text-red-600 hover:underline deleteBtn">Delete</button>
-                    </td>
-                </tr>
-                <tr>
-                    <td class="border px-4 py-2">Organic Carrots (3kg)</td>
-                    <td class="border px-4 py-2">2025-05-19</td>
-                    <td class="border px-4 py-2">$19.50</td>
-                    <td class="border px-4 py-2">In Stock</td>
-                    <td class="border px-4 py-2 space-x-2">
-                        <button class="text-blue-600 hover:underline editBtn">Edit</button>
-                        <button class="text-red-600 hover:underline deleteBtn">Delete</button>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+        <div class="overflow-auto bg-white rounded shadow border border-gray-300">
+            <table class="min-w-full text-sm text-left">
+                <thead class="bg-gray-100 text-gray-700 font-semibold">
+                    <tr>
+                        <th class="px-4 py-2">Product</th>
+                        <th class="px-4 py-2">Date</th>
+                        <th class="px-4 py-2">Amount</th>
+                        <th class="px-4 py-2">Status</th>
+                        <th class="px-4 py-2">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($sales as $sale)
+                        <tr class="border-t">
+                            <td class="px-4 py-2">{{ $sale->product->name }} ({{ $sale->quantity }}kg)</td>
+                            <td class="px-4 py-2">{{ $sale->sale_date->format('Y-m-d') }}</td>
+                            <td class="px-4 py-2">₱{{ number_format($sale->total_amount, 2) }}</td>
+                            <td class="px-4 py-2 text-green-600 capitalize">{{ $sale->status }}</td>
+                            <td class="px-4 py-2 space-x-2">
+                                <button wire:click="openModal({{ $sale->id }})" class="text-blue-600 hover:underline">Edit</button>
+                                <button wire:click="delete({{ $sale->id }})" 
+                                        wire:confirm="Are you sure you want to delete this sale?" 
+                                        class="text-red-600 hover:underline">Delete</button>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr class="border-t">
+                            <td colspan="5" class="px-4 py-8 text-center text-gray-500">No sales found</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
     </div>
+
+    <!-- Add/Edit Sale Modal -->
+    @if($showModal)
+        <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                <div class="mt-3">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-medium text-gray-900">
+                            {{ $editingSale ? 'Edit Sale' : 'Add New Sale' }}
+                        </h3>
+                        <button wire:click="closeModal" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <form wire:submit.prevent="save">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Product</label>
+                                <select wire:model="product_id" wire:change="updatedProductId" class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-red-500 focus:border-red-500">
+                                    <option value="">Select Product</option>
+                                    @foreach($products as $product)
+                                        <option value="{{ $product->id }}">{{ $product->name }} (Stock: {{ $product->stock_quantity }})</option>
+                                    @endforeach
+                                </select>
+                                @error('product_id') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+                            
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Quantity</label>
+                                <input type="number" wire:model="quantity" min="1" class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-red-500 focus:border-red-500">
+                                @error('quantity') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Unit Price</label>
+                                <input type="number" wire:model="unit_price" step="0.01" min="0" class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-red-500 focus:border-red-500">
+                                @error('unit_price') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Sale Date</label>
+                                <input type="date" wire:model="sale_date" class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-red-500 focus:border-red-500">
+                                @error('sale_date') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-end space-x-3 mt-6">
+                            <button type="button" wire:click="closeModal" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 border border-gray-300 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                                Cancel
+                            </button>
+                            <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                                {{ $editingSale ? 'Update Sale' : 'Add Sale' }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endif
+</div>
