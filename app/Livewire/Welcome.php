@@ -8,7 +8,7 @@ class Welcome extends Component
 {
     public function render()
     {
-        return view('livewire.welcome')->layout('layouts.guest');
+        return view('livewire.welcome')->layout('layouts.welcome');
     }
 
     public function redirectToLogin($role)

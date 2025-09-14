@@ -24,9 +24,6 @@
                 background: linear-gradient(135deg, #1a1a1a 0%, #2d3748 100%);
             }
             
-            .staff-theme {
-                background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-            }
 
             .glass-effect {
                 background: rgba(255, 255, 255, 0.1);
@@ -50,10 +47,6 @@
                 .min-h-screen {
                     padding: 2rem 0;
                 }
-            }
-            
-            .admin-theme {
-                background: linear-gradient(135deg, #1a1a1a 0%, #2d3748 100%);
             }
             
             .staff-theme {
